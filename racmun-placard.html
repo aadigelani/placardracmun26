@@ -1,0 +1,1831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RACMUN 2026 — Placard Generator</title>
+
+<!-- =============================================
+     FONTS — Change these to update typography
+     ============================================= -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300&family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+
+<!-- PDF Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<style>
+/* =============================================
+   CSS VARIABLES — Edit these to retheme
+   ============================================= */
+:root {
+  --gold: #B8975A;
+  --gold-light: #D4AF72;
+  --gold-pale: #F5EDD8;
+  --navy: #0D1B2E;
+  --navy-mid: #162338;
+  --navy-light: #1E2F45;
+  --white: #FDFCF9;
+  --paper: #F8F5EE;
+  --ink: #1A1612;
+  --ink-soft: #3A342C;
+  --border: rgba(184,151,90,0.25);
+  --shadow-deep: 0 32px 80px rgba(13,27,46,0.45), 0 8px 24px rgba(13,27,46,0.3);
+  --radius: 2px;
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-ui: 'Montserrat', sans-serif;
+  --font-editorial: 'Cormorant Garamond', Georgia, serif;
+}
+
+/* =============================================
+   RESET & BASE
+   ============================================= */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-ui);
+  background: var(--navy);
+  color: var(--white);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* =============================================
+   BACKGROUND TEXTURE — atmospheric depth
+   ============================================= */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(184,151,90,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 80% at 80% 90%, rgba(184,151,90,0.05) 0%, transparent 60%),
+    linear-gradient(160deg, #0D1B2E 0%, #162338 50%, #0A1520 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Fine grain texture overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.6;
+}
+
+/* =============================================
+   FLOATING PAPER ANIMATION — landing ambience
+   ============================================= */
+.paper-float {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.paper-sheet {
+  position: absolute;
+  background: rgba(248,245,238,0.03);
+  border: 1px solid rgba(184,151,90,0.08);
+  border-radius: 1px;
+  animation: floatPaper linear infinite;
+  transform-origin: center center;
+}
+
+@keyframes floatPaper {
+  0% { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+  5% { opacity: 1; }
+  95% { opacity: 0.6; }
+  100% { transform: translateY(-20vh) rotate(720deg); opacity: 0; }
+}
+
+/* =============================================
+   LAYOUT WRAPPER
+   ============================================= */
+.app-wrapper {
+  position: relative;
+  z-index: 2;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* =============================================
+   HEADER
+   ============================================= */
+.site-header {
+  padding: 2rem 3rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: rgba(13,27,46,0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.site-logo-area {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.site-logo-emblem {
+  width: 42px;
+  height: 42px;
+  border: 1.5px solid var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--gold);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.site-logo-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.site-logo-main {
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: 0.2em;
+  color: var(--gold);
+  line-height: 1;
+}
+
+.site-logo-sub {
+  font-family: var(--font-editorial);
+  font-size: 0.75rem;
+  color: rgba(253,252,249,0.4);
+  letter-spacing: 0.1em;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.admin-access-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: rgba(253,252,249,0.5);
+  font-family: var(--font-ui);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-access-btn:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(184,151,90,0.05);
+}
+
+.admin-access-btn .lock-icon { font-size: 0.75rem; }
+
+/* =============================================
+   HERO SECTION
+   ============================================= */
+.hero {
+  padding: 4rem 3rem 3rem;
+  text-align: center;
+  position: relative;
+}
+
+.hero-eyebrow {
+  font-family: var(--font-ui);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.4em;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 1.5rem;
+  opacity: 0;
+  animation: fadeUp 0.8s ease 0.2s forwards;
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-weight: 900;
+  line-height: 1.05;
+  color: var(--white);
+  margin-bottom: 1rem;
+  opacity: 0;
+  animation: fadeUp 0.8s ease 0.4s forwards;
+}
+
+.hero-title span {
+  color: var(--gold);
+  font-style: italic;
+}
+
+.hero-subtitle {
+  font-family: var(--font-editorial);
+  font-size: 1.1rem;
+  color: rgba(253,252,249,0.5);
+  font-style: italic;
+  margin-bottom: 0;
+  opacity: 0;
+  animation: fadeUp 0.8s ease 0.6s forwards;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* =============================================
+   MAIN CONTENT AREA
+   ============================================= */
+.main-content {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 0;
+  padding: 2rem 3rem 3rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* =============================================
+   FORM PANEL (LEFT)
+   ============================================= */
+.form-panel {
+  padding-right: 2.5rem;
+  border-right: 1px solid var(--border);
+  opacity: 0;
+  animation: fadeUp 0.8s ease 0.8s forwards;
+}
+
+.panel-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.panel-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Mode toggle */
+.mode-toggle {
+  display: flex;
+  margin-bottom: 2rem;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 0.75rem;
+  background: transparent;
+  border: none;
+  color: rgba(253,252,249,0.4);
+  font-family: var(--font-ui);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.mode-btn.active {
+  background: var(--gold);
+  color: var(--navy);
+}
+
+.mode-btn:not(.active):hover {
+  color: var(--gold);
+  background: rgba(184,151,90,0.05);
+}
+
+/* Form groups */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  color: rgba(253,252,249,0.4);
+  text-transform: uppercase;
+  margin-bottom: 0.6rem;
+}
+
+.form-group input[type="text"],
+.form-group input[type="password"],
+.form-group select {
+  width: 100%;
+  background: rgba(253,252,249,0.03);
+  border: 1px solid var(--border);
+  color: var(--white);
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  font-weight: 400;
+  padding: 0.85rem 1rem;
+  outline: none;
+  transition: all 0.3s ease;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.form-group input[type="text"]:focus,
+.form-group input[type="password"]:focus,
+.form-group select:focus {
+  border-color: var(--gold);
+  background: rgba(184,151,90,0.04);
+}
+
+.form-group select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23B8975A' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  padding-right: 2.5rem;
+}
+
+.form-group select option {
+  background: var(--navy-mid);
+  color: var(--white);
+}
+
+/* Upload zone */
+.upload-zone {
+  border: 1px dashed rgba(184,151,90,0.35);
+  padding: 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  background: rgba(184,151,90,0.02);
+}
+
+.upload-zone:hover {
+  border-color: var(--gold);
+  background: rgba(184,151,90,0.05);
+}
+
+.upload-zone.has-image {
+  border-style: solid;
+  border-color: var(--gold);
+}
+
+.upload-zone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+.upload-icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--gold);
+  opacity: 0.6;
+}
+
+.upload-text {
+  font-size: 0.7rem;
+  color: rgba(253,252,249,0.4);
+  letter-spacing: 0.05em;
+}
+
+.upload-preview {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  margin: 0 auto 0.5rem;
+  display: none;
+}
+
+.upload-preview.visible { display: block; }
+
+/* =============================================
+   ADMIN PASSWORD MODAL
+   ============================================= */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13,27,46,0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.modal-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-box {
+  background: var(--navy-mid);
+  border: 1px solid var(--border);
+  padding: 2.5rem;
+  width: 360px;
+  max-width: 90vw;
+  transform: translateY(20px);
+  transition: transform 0.3s ease;
+  position: relative;
+}
+
+.modal-overlay.visible .modal-box { transform: translateY(0); }
+
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--gold);
+  margin-bottom: 0.4rem;
+}
+
+.modal-sub {
+  font-size: 0.7rem;
+  color: rgba(253,252,249,0.35);
+  letter-spacing: 0.1em;
+  margin-bottom: 1.5rem;
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem; right: 1rem;
+  background: none;
+  border: none;
+  color: rgba(253,252,249,0.3);
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.modal-close:hover { color: var(--gold); }
+
+.modal-error {
+  font-size: 0.7rem;
+  color: #E07070;
+  margin-top: 0.5rem;
+  letter-spacing: 0.05em;
+  display: none;
+}
+
+.modal-error.visible { display: block; }
+
+/* Action buttons */
+.btn-primary {
+  width: 100%;
+  background: var(--gold);
+  border: none;
+  color: var(--navy);
+  font-family: var(--font-ui);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+}
+
+.btn-primary:hover {
+  background: var(--gold-light);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(184,151,90,0.3);
+}
+
+.btn-primary:active { transform: translateY(0); }
+
+.btn-secondary {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: rgba(253,252,249,0.5);
+  font-family: var(--font-ui);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 0.85rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 0.75rem;
+}
+
+.btn-secondary:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+/* =============================================
+   PREVIEW PANEL (RIGHT)
+   ============================================= */
+.preview-panel {
+  padding-left: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  animation: fadeUp 0.8s ease 1s forwards;
+}
+
+.preview-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.preview-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.preview-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1rem 0;
+}
+
+/* A4 preview sheet container */
+.a4-preview {
+  /* A4 ratio: 210 x 297mm → ~0.707 aspect ratio */
+  width: 100%;
+  max-width: 500px;
+  aspect-ratio: 210 / 297;
+  background: var(--paper);
+  box-shadow: var(--shadow-deep), 0 0 0 1px rgba(0,0,0,0.1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-ui);
+  color: var(--ink);
+}
+
+/* Margin guides (faint) */
+.a4-preview::before {
+  content: '';
+  position: absolute;
+  inset: 3.5%;
+  border: 1px dashed rgba(13,27,46,0.06);
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* =============================================
+   A4 SECTION LAYOUT
+   Ratio: 3 : 7 : 7 : 3  (total = 20 parts)
+   Top to bottom:
+   1. Base (3/20 = 15%)
+   2. MAIN PANEL (7/20 = 35%)
+   3. Empty panel (7/20 = 35%)
+   4. Base (3/20 = 15%)
+   ============================================= */
+.a4-section {
+  position: relative;
+  width: 100%;
+}
+
+.a4-base-top    { flex: 3; background: var(--paper); }
+.a4-main-panel  { flex: 7; background: var(--paper); position: relative; }
+.a4-empty-panel { flex: 7; background: var(--paper); }
+.a4-base-bottom { flex: 3; background: var(--paper); }
+
+/* Fold lines */
+.fold-line {
+  width: 100%;
+  border-top: 1.5px dashed rgba(13,27,46,0.2);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fold-label {
+  position: absolute;
+  background: var(--paper);
+  padding: 0 4px;
+  font-size: 0.45rem;
+  letter-spacing: 0.2em;
+  color: rgba(13,27,46,0.3);
+  text-transform: uppercase;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  top: -0.55rem;
+}
+
+/* =============================================
+   MAIN PANEL CONTENT
+   ============================================= */
+.main-panel-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 3.5%;
+}
+
+/* Corner logos row */
+.panel-logos-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+
+.corner-logo {
+  width: 14%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  display: block;
+}
+
+/* Placeholder for RACMUN logo (left) */
+/* =============================================
+   RACMUN LOGO — Replace the SVG below with
+   an <img> tag pointing to your logo file:
+   e.g. <img src="racmun-logo.png" class="corner-logo">
+   ============================================= */
+.racmun-logo-placeholder {
+  width: 22%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.racmun-logo-placeholder svg {
+  width: 100%;
+  height: 100%;
+}
+.racmun-logo-placeholder {
+  margin-right: 10mm;
+}
+/* Right corner logo (uploaded) */
+.right-corner-logo {
+  width: 14%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
+}
+
+.right-corner-placeholder {
+  width: 14%;
+  aspect-ratio: 1;
+  border: 1px dashed rgba(13,27,46,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.right-corner-placeholder span {
+  font-size: 0.4rem;
+  color: rgba(13,27,46,0.25);
+  text-align: center;
+  font-style: italic;
+  font-family: var(--font-editorial);
+}
+
+/* Center delegation name */
+.panel-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2% 4%;
+}
+
+.delegation-name {
+  font-family: var(--font-ui);
+  font-weight: 800;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--ink);
+  line-height: 1.1;
+  letter-spacing: 0.05em;
+  word-break: break-word;
+  /* Font size is set dynamically by JS */
+}
+
+.delegation-name.placeholder-text {
+  color: rgba(13,27,46,0.2);
+  font-weight: 400;
+  font-style: italic;
+  font-family: var(--font-editorial);
+  font-size: 0.8em;
+  letter-spacing: 0.05em;
+}
+
+/* Bottom committee strip */
+.panel-footer {
+  flex-shrink: 0;
+  text-align: center;
+  padding-top: 2%;
+  border-top: 1px solid rgba(13,27,46,0.12);
+}
+
+.committee-text {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+  /* Font size set dynamically */
+}
+
+.committee-text.placeholder-text {
+  color: rgba(13,27,46,0.2);
+  font-weight: 400;
+}
+
+/* =============================================
+   DOWNLOAD SECTION
+   ============================================= */
+.download-section {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn-download {
+  flex: 1;
+  min-width: 160px;
+  background: var(--gold);
+  border: none;
+  color: var(--navy);
+  font-family: var(--font-ui);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-download:hover {
+  background: var(--gold-light);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(184,151,90,0.35);
+}
+
+.btn-download:active { transform: translateY(0); }
+
+.btn-download:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-download svg { flex-shrink: 0; }
+
+/* =============================================
+   FOOTER
+   ============================================= */
+.site-footer {
+  border-top: 1px solid var(--border);
+  padding: 1.2rem 3rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(13,27,46,0.4);
+}
+
+.footer-text {
+  font-size: 0.6rem;
+  color: rgba(253,252,249,0.2);
+  letter-spacing: 0.1em;
+  font-family: var(--font-editorial);
+  font-style: italic;
+}
+
+/* =============================================
+   RESPONSIVE
+   ============================================= */
+@media (max-width: 900px) {
+  .main-content {
+    grid-template-columns: 1fr;
+    padding: 1.5rem;
+  }
+
+  .form-panel {
+    padding-right: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 2rem;
+    margin-bottom: 2rem;
+  }
+
+  .preview-panel { padding-left: 0; }
+
+  .site-header { padding: 1.2rem 1.5rem; }
+  .hero { padding: 2rem 1.5rem; }
+  .site-footer { padding: 1rem 1.5rem; }
+  .site-footer .footer-text:last-child { display: none; }
+}
+
+@media (max-width: 480px) {
+  .hero-title { font-size: 2rem; }
+  .admin-access-btn span:not(.lock-icon) { display: none; }
+}
+
+/* =============================================
+   LOADING STATE
+   ============================================= */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13,27,46,0.9);
+  backdrop-filter: blur(8px);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.loading-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 2px solid rgba(184,151,90,0.2);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-text {
+  font-size: 0.65rem;
+  letter-spacing: 0.3em;
+  color: var(--gold);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* =============================================
+   TYPEWRITER CURSOR
+   ============================================= */
+.typewriter-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--gold);
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Tooltip / hint */
+.field-hint {
+  font-size: 0.6rem;
+  color: rgba(253,252,249,0.25);
+  margin-top: 0.4rem;
+  font-style: italic;
+  font-family: var(--font-editorial);
+}
+
+/* Badge for admin mode */
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(184,151,90,0.12);
+  border: 1px solid rgba(184,151,90,0.3);
+  color: var(--gold);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  padding: 0.25rem 0.6rem;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+
+.admin-badge::before {
+  content: '◆';
+  font-size: 0.45rem;
+}
+</style>
+</head>
+<body>
+
+<!-- =============================================
+     FLOATING PAPER ANIMATIONS (background)
+     ============================================= -->
+<div class="paper-float" id="paperFloat"></div>
+
+<!-- =============================================
+     ADMIN PASSWORD MODAL
+     ============================================= -->
+<div class="modal-overlay" id="adminModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">Admin Access</div>
+    <div class="modal-sub">RESTRICTED — AUTHORIZED PERSONNEL ONLY</div>
+    <div class="form-group">
+      <label>Access Passphrase</label>
+      <!-- =============================================
+           ADMIN PASSWORD — Change below in JS: const ADMIN_PASSWORD = '...'
+           ============================================= -->
+      <input type="password" id="passwordInput" placeholder="Enter passphrase" 
+             onkeydown="if(event.key==='Enter') verifyPassword()">
+    </div>
+    <div class="modal-error" id="modalError">Incorrect passphrase. Access denied.</div>
+    <button class="btn-primary" onclick="verifyPassword()">Authenticate</button>
+  </div>
+</div>
+
+<!-- =============================================
+     LOADING OVERLAY
+     ============================================= -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Generating PDF</div>
+</div>
+
+<!-- =============================================
+     APP WRAPPER
+     ============================================= -->
+<div class="app-wrapper">
+
+  <!-- HEADER -->
+  <header class="site-header">
+    <div class="site-logo-area">
+      <div class="site-logo-emblem">R</div>
+      <div class="site-logo-text">
+        <div class="site-logo-main">RACMUN</div>
+        <div class="site-logo-sub">Placard Generator · 2026</div>
+      </div>
+    </div>
+    <button class="admin-access-btn" onclick="openModal()">
+      <span class="lock-icon">🔒</span>
+      <span>Admin Access</span>
+    </button>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-eyebrow">Model United Nations · 2026</div>
+    <h1 class="hero-title">
+      Generate Your <span>Placard</span>
+    </h1>
+    <p class="hero-subtitle">Premium print-accurate desk placards for RACMUN delegates &amp; officials</p>
+  </section>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+
+    <!-- =========================================
+         FORM PANEL (LEFT)
+         ========================================= -->
+    <div class="form-panel">
+      <div class="panel-label">Configuration</div>
+
+      <!-- Mode Toggle -->
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="delegateBtn" onclick="switchMode('delegate')">Delegate</button>
+        <button class="mode-btn" id="adminFormBtn" onclick="switchMode('admin')" style="display:none;">Admin</button>
+      </div>
+
+      <!-- DELEGATE FORM -->
+      <div id="delegateForm">
+        <div class="form-group">
+          <label>Delegation Name</label>
+          <input type="text" id="delegationName" placeholder="e.g. INDIA, UNITED STATES"
+                 oninput="updatePreview()" maxlength="40">
+          <div class="field-hint">Will appear in ALL CAPS on the placard</div>
+        </div>
+
+        <div class="form-group">
+          <label>Committee</label>
+          <!-- =============================================
+               COMMITTEES — Add/remove options here to
+               change available committees
+               ============================================= -->
+          <select id="committeeSelect" onchange="updatePreview()">
+            <option value="">— Select Committee —</option>
+            <option value="UNSC">United Nations Security Council (UNSC)</option>
+            <option value="LokSabha">Lok Sabha</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Delegation Logo / Flag (Optional)</label>
+          <div class="upload-zone" id="delegationLogoZone">
+            <input type="file" accept="image/*" id="delegationLogoInput" onchange="handleLogoUpload(this, 'delegationLogoPreview', 'delegationLogoZone')">
+            <img class="upload-preview" id="delegationLogoPreview" alt="Logo preview">
+            <div class="upload-icon" id="delegationLogoIcon">⬆</div>
+            <div class="upload-text" id="delegationLogoText">Click to upload delegation logo or flag</div>
+          </div>
+        </div>
+
+        <button class="btn-primary" onclick="downloadPDF()">
+          Download Placard PDF
+        </button>
+        <button class="btn-secondary" onclick="resetForm()">Reset Form</button>
+      </div>
+
+      <!-- ADMIN FORM (hidden by default) -->
+      <div id="adminForm" style="display:none;">
+        <div class="admin-badge">Admin Mode — Authorized</div>
+
+        <div class="form-group">
+          <label>Full Name / Title</label>
+          <input type="text" id="adminName" placeholder="e.g. Dr. Aisha Mehta"
+                 oninput="updatePreview()" maxlength="40">
+        </div>
+
+        <div class="form-group">
+          <label>Committee</label>
+          <select id="adminCommitteeSelect" onchange="updateAdminRoles(); updatePreview()">
+            <option value="">— Select Committee —</option>
+            <option value="UNSC">United Nations Security Council (UNSC)</option>
+            <option value="LokSabha">Lok Sabha</option>
+            <option value="Press">Press</option>
+          </select>
+        </div>
+
+        <!-- =============================================
+             ADMIN ROLES — These map to committees.
+             Edit the options in updateAdminRoles() in JS.
+             ============================================= -->
+        <div class="form-group" id="adminRoleGroup" style="display:none;">
+          <label>Role</label>
+          <select id="adminRoleSelect" onchange="updatePreview()">
+            <option value="">— Select Role —</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Photo / Logo (Optional)</label>
+          <div class="upload-zone" id="adminPhotoZone">
+            <input type="file" accept="image/*" id="adminPhotoInput" onchange="handleLogoUpload(this, 'adminPhotoPreview', 'adminPhotoZone')">
+            <img class="upload-preview" id="adminPhotoPreview" alt="Photo preview">
+            <div class="upload-icon" id="adminPhotoIcon">⬆</div>
+            <div class="upload-text" id="adminPhotoText">Click to upload photo or logo</div>
+          </div>
+        </div>
+
+        <button class="btn-primary" onclick="downloadPDF()">
+          Download Placard PDF
+        </button>
+        <button class="btn-secondary" onclick="exitAdminMode()">Exit Admin Mode</button>
+      </div>
+    </div>
+
+    <!-- =========================================
+         PREVIEW PANEL (RIGHT)
+         ========================================= -->
+    <div class="preview-panel">
+      <div class="preview-label">Live Preview</div>
+
+      <div class="preview-wrapper">
+        <!-- =============================================
+             A4 PREVIEW SHEET
+             Sections ratio: 3 : 7 : 7 : 3
+             ============================================= -->
+        <div class="a4-preview" id="a4Preview">
+
+          <!-- SECTION 1: Base Top (3 parts) -->
+          <div class="a4-section a4-base-top"></div>
+          <!-- SECTION 2: Empty panel (7 parts) — back of placard -->
+          <div class="a4-section a4-empty-panel"></div>
+
+          <!-- FOLD LINE 1 -->
+          <div class="fold-line">
+            <span class="fold-label">Fold</span>
+          </div>
+
+          
+
+          <!-- FOLD LINE 2 -->
+          <div class="fold-line">
+            <span class="fold-label">Fold</span>
+          </div>
+          <!-- SECTION 3: MAIN PRINT PANEL (7 parts) -->
+          <div class="a4-section a4-main-panel">
+            <div class="main-panel-inner" id="mainPanelInner">
+
+              <!-- Top row: corner logos -->
+              <div class="panel-logos-row">
+                
+              <img src="./assets/unsc-logo.png" class="corner-logo">
+
+                <!-- RIGHT: Uploaded logo or placeholder -->
+                <div class="right-corner-placeholder" id="rightCornerPlaceholder">
+                  <span>Upload<br>Logo</span>
+                </div>
+                <img class="right-corner-logo" id="rightCornerImg" src="" alt="Delegation Logo" style="display:none;">
+              </div>
+
+              <!-- CENTER: Delegation name -->
+              <div class="panel-center">
+                <div class="delegation-name placeholder-text" id="delegationDisplay">
+                  Delegation Name
+                </div>
+              </div>
+
+              <!-- BOTTOM: Committee info -->
+              <div class="panel-footer">
+                <div class="committee-text placeholder-text" id="committeeDisplay">
+                  COMMITTEE — RACMUN 2026
+                </div>
+              </div>
+
+            </div>
+          </div>
+          
+          <!-- FOLD LINE 3 -->
+          <div class="fold-line">
+            <span class="fold-label">Fold</span>
+          </div>
+
+          <!-- SECTION 4: Base Bottom (3 parts) -->
+          <div class="a4-section a4-base-bottom"></div>
+
+        </div>
+      </div>
+
+      <!-- DOWNLOAD BUTTON -->
+      <div class="download-section">
+        <button class="btn-download" id="downloadBtn" onclick="downloadPDF()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download Placard PDF
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="footer-text">RACMUN 2026 · Official Placard Generator</div>
+    <div class="footer-text">A4 Portrait · Foldable Triangular Desk Placard</div>
+  </footer>
+
+</div><!-- end .app-wrapper -->
+
+<!-- =============================================
+     HIDDEN PRINT CANVAS
+     This is the element captured by html2canvas
+     for PDF generation. It matches the A4
+     proportions at higher resolution.
+     ============================================= -->
+<div id="printCanvas" style="
+  position: fixed;
+  top: -9999px;
+  left: -9999px;
+  width: 794px;
+  height: 1123px;
+  background: #F8F5EE;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: 'Montserrat', sans-serif;
+  color: #1A1612;
+">
+  <!-- Populated dynamically by JS -->
+</div>
+
+<script>
+// =============================================
+// CONFIGURATION — Edit these values
+// =============================================
+
+/* ADMIN PASSWORD — Change this to update the passphrase */
+const ADMIN_PASSWORD = 'UNLSRM26';
+
+/* COMMITTEE TEXT — Shown at bottom of placard */
+const COMMITTEE_LABELS = {
+  UNSC: 'UNITED NATIONS SECURITY COUNCIL — RACMUN 2026',
+  LokSabha: 'LOK SABHA — RACMUN 2026',
+  Press: 'INTERNATIONAL PRESS — RACMUN 2026'
+};
+
+/* ADMIN ROLES PER COMMITTEE */
+const ADMIN_ROLES = {
+  UNSC: ['CHAIR', 'VICE CHAIR', 'EB MEMBER'],
+  LokSabha: ['SPEAKER', 'DEPUTY SPEAKER', 'RAPPORTEUR'],
+  Press: ['INTERNATIONAL PRESS']
+};
+
+// =============================================
+// STATE
+// =============================================
+let currentMode = 'delegate'; // 'delegate' | 'admin'
+let uploadedLogoDataURL = null; // uploaded image data URL
+
+// =============================================
+// FLOATING PAPER ANIMATION INIT
+// =============================================
+(function initPaperFloat() {
+  const container = document.getElementById('paperFloat');
+  const count = 8;
+  for (let i = 0; i < count; i++) {
+    const sheet = document.createElement('div');
+    sheet.classList.add('paper-sheet');
+    const w = 40 + Math.random() * 60;
+    const h = w * 1.414;
+    const leftPct = Math.random() * 95;
+    const duration = 18 + Math.random() * 20;
+    const delay = -(Math.random() * duration);
+    sheet.style.cssText = `
+      width: ${w}px;
+      height: ${h}px;
+      left: ${leftPct}%;
+      animation-duration: ${duration}s;
+      animation-delay: ${delay}s;
+      opacity: ${0.02 + Math.random() * 0.04};
+    `;
+    container.appendChild(sheet);
+  }
+})();
+
+// =============================================
+// MODE SWITCHING
+// =============================================
+function switchMode(mode) {
+  currentMode = mode;
+  const delegateForm = document.getElementById('delegateForm');
+  const adminFormEl  = document.getElementById('adminForm');
+  const delegateBtn  = document.getElementById('delegateBtn');
+  const adminFormBtn = document.getElementById('adminFormBtn');
+
+  if (mode === 'delegate') {
+    delegateForm.style.display = 'block';
+    adminFormEl.style.display  = 'none';
+    delegateBtn.classList.add('active');
+    adminFormBtn.classList.remove('active');
+  } else {
+    delegateForm.style.display = 'none';
+    adminFormEl.style.display  = 'block';
+    delegateBtn.classList.remove('active');
+    adminFormBtn.classList.add('active');
+  }
+  uploadedLogoDataURL = null;
+  updatePreview();
+}
+
+function exitAdminMode() {
+  document.getElementById('adminFormBtn').style.display = 'none';
+  document.getElementById('delegateBtn').classList.add('active');
+  switchMode('delegate');
+}
+
+// =============================================
+// ADMIN MODAL
+// =============================================
+function openModal() {
+  document.getElementById('adminModal').classList.add('visible');
+  document.getElementById('passwordInput').value = '';
+  document.getElementById('modalError').classList.remove('visible');
+  setTimeout(() => document.getElementById('passwordInput').focus(), 300);
+}
+
+function closeModal() {
+  document.getElementById('adminModal').classList.remove('visible');
+}
+
+// Close modal on overlay click
+document.getElementById('adminModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+function verifyPassword() {
+  const input = document.getElementById('passwordInput').value;
+  if (input === ADMIN_PASSWORD) {
+    closeModal();
+    // Reveal admin form button and switch
+    document.getElementById('adminFormBtn').style.display = 'block';
+    switchMode('admin');
+  } else {
+    const err = document.getElementById('modalError');
+    err.classList.add('visible');
+    document.getElementById('passwordInput').value = '';
+    document.getElementById('passwordInput').focus();
+    // Shake animation
+    const box = document.querySelector('.modal-box');
+    box.style.transform = 'translateX(-8px)';
+    setTimeout(() => { box.style.transform = 'translateX(8px)'; }, 80);
+    setTimeout(() => { box.style.transform = 'translateX(0)'; }, 160);
+  }
+}
+
+// =============================================
+// ADMIN ROLES POPULATION
+// =============================================
+function updateAdminRoles() {
+  const committee = document.getElementById('adminCommitteeSelect').value;
+  const roleGroup  = document.getElementById('adminRoleGroup');
+  const roleSelect = document.getElementById('adminRoleSelect');
+
+  if (committee && ADMIN_ROLES[committee]) {
+    roleGroup.style.display = 'block';
+    roleSelect.innerHTML = '<option value="">— Select Role —</option>';
+    ADMIN_ROLES[committee].forEach(role => {
+      const opt = document.createElement('option');
+      opt.value = role;
+      opt.textContent = role;
+      roleSelect.appendChild(opt);
+    });
+  } else {
+    roleGroup.style.display = 'none';
+    roleSelect.innerHTML = '<option value="">— Select Role —</option>';
+  }
+}
+
+// =============================================
+// IMAGE UPLOAD HANDLER
+// =============================================
+function handleLogoUpload(input, previewId, zoneId) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    uploadedLogoDataURL = e.target.result;
+
+    // Update upload zone UI
+    const preview = document.getElementById(previewId);
+    const zone = document.getElementById(zoneId);
+    const icon = document.getElementById(zoneId.replace('Zone', 'Icon'));
+    const text = document.getElementById(zoneId.replace('Zone', 'Text'));
+
+    preview.src = uploadedLogoDataURL;
+    preview.classList.add('visible');
+    if (icon) icon.style.display = 'none';
+    if (text) text.textContent = '✓ ' + file.name;
+    zone.classList.add('has-image');
+
+    updatePreview();
+  };
+  reader.readAsDataURL(file);
+}
+
+// =============================================
+// LIVE PREVIEW UPDATE
+// =============================================
+function updatePreview() {
+  // Gather values
+  let displayName = '';
+  let committeeKey = '';
+  let role = '';
+
+  if (currentMode === 'delegate') {
+    displayName  = document.getElementById('delegationName').value.trim().toUpperCase();
+    committeeKey = document.getElementById('committeeSelect').value;
+  } else {
+    displayName  = document.getElementById('adminName').value.trim().toUpperCase();
+    committeeKey = document.getElementById('adminCommitteeSelect').value;
+    role         = document.getElementById('adminRoleSelect')?.value || '';
+  }
+
+  // --- Delegation name display ---
+  const nameEl = document.getElementById('delegationDisplay');
+  if (displayName) {
+    nameEl.textContent = displayName;
+    nameEl.classList.remove('placeholder-text');
+  } else {
+    nameEl.textContent = 'Delegation Name';
+    nameEl.classList.add('placeholder-text');
+  }
+
+  // Auto-size delegation name font
+  autoSizeDelegationName(nameEl, displayName);
+
+  // --- Committee/role display ---
+  const committeeEl = document.getElementById('committeeDisplay');
+  let committeeText = '';
+
+  if (currentMode === 'admin' && role) {
+    // Admin: show role + committee
+    const label = COMMITTEE_LABELS[committeeKey] || '';
+    committeeText = role + (label ? ' — ' + label : '');
+  } else if (committeeKey && COMMITTEE_LABELS[committeeKey]) {
+    committeeText = COMMITTEE_LABELS[committeeKey];
+  }
+
+  if (committeeText) {
+    committeeEl.textContent = committeeText;
+    committeeEl.classList.remove('placeholder-text');
+  } else {
+    committeeEl.textContent = 'COMMITTEE — RACMUN 2026';
+    committeeEl.classList.add('placeholder-text');
+  }
+
+  // Auto-size committee text
+  autoSizeCommitteeText(committeeEl, committeeText);
+
+  // --- Right corner logo ---
+  const rightImg  = document.getElementById('rightCornerImg');
+  const rightPlh  = document.getElementById('rightCornerPlaceholder');
+
+  if (uploadedLogoDataURL) {
+    rightImg.src = uploadedLogoDataURL;
+    rightImg.style.display = 'block';
+    rightPlh.style.display = 'none';
+  } else {
+    rightImg.style.display = 'none';
+    rightPlh.style.display = 'flex';
+  }
+}
+
+// =============================================
+// FONT AUTO-SIZING UTILITIES
+// =============================================
+function autoSizeDelegationName(el, text) {
+  if (!text) { el.style.fontSize = ''; return; }
+
+  // Get parent width in px
+  const container = el.parentElement;
+  const containerW = container.offsetWidth;
+
+  // Estimate font size based on text length and container
+  const baseSize = containerW * 0.13;
+  const len = text.length;
+  let size = baseSize;
+  if (len > 20) size = baseSize * (20 / len);
+  if (len > 8)  size = Math.min(size, baseSize * 0.85);
+
+  size = Math.max(size, 8); // minimum readable size
+  el.style.fontSize = size + 'px';
+}
+
+function autoSizeCommitteeText(el, text) {
+  if (!text) { el.style.fontSize = ''; return; }
+  const container = el.parentElement;
+  const containerW = container.offsetWidth;
+  const len = text.length;
+
+  let size = containerW * 0.038;
+  if (len > 40) size = containerW * 0.030;
+  if (len > 60) size = containerW * 0.024;
+
+  size = Math.max(size, 5);
+  el.style.fontSize = size + 'px';
+  el.style.letterSpacing = '0.08em';
+}
+
+// =============================================
+// RESET FORM
+// =============================================
+function resetForm() {
+  document.getElementById('delegationName').value = '';
+  document.getElementById('committeeSelect').value = '';
+  uploadedLogoDataURL = null;
+
+  // Reset upload zone
+  const preview = document.getElementById('delegationLogoPreview');
+  const zone    = document.getElementById('delegationLogoZone');
+  const icon    = document.getElementById('delegationLogoIcon');
+  const text    = document.getElementById('delegationLogoText');
+  preview.classList.remove('visible');
+  preview.src = '';
+  zone.classList.remove('has-image');
+  if (icon) icon.style.display = '';
+  if (text) text.textContent = 'Click to upload delegation logo or flag';
+  document.getElementById('delegationLogoInput').value = '';
+
+  updatePreview();
+}
+
+// =============================================
+// BUILD PRINT CANVAS HTML
+// Generates the high-resolution A4 HTML that
+// html2canvas will capture for PDF export.
+// =============================================
+function buildPrintCanvas() {
+  // Gather values same as preview
+  let displayName = '';
+  let committeeKey = '';
+  let role = '';
+
+  if (currentMode === 'delegate') {
+    displayName  = document.getElementById('delegationName').value.trim().toUpperCase();
+    committeeKey = document.getElementById('committeeSelect').value;
+  } else {
+    displayName  = document.getElementById('adminName').value.trim().toUpperCase();
+    committeeKey = document.getElementById('adminCommitteeSelect').value;
+    role         = document.getElementById('adminRoleSelect')?.value || '';
+  }
+
+  let committeeText = '';
+  if (currentMode === 'admin' && role) {
+    const label = COMMITTEE_LABELS[committeeKey] || '';
+    committeeText = role + (label ? ' — ' + label : '');
+  } else if (committeeKey && COMMITTEE_LABELS[committeeKey]) {
+    committeeText = COMMITTEE_LABELS[committeeKey];
+  }
+
+  // Calculate font sizes for print (794px wide canvas)
+  const canvasW = 794;
+  const mainPanelH = Math.round(canvasW * (297/210) * 7/20); // 7 parts of 20
+  const panelInnerW = canvasW * 0.88;
+
+  // Delegation name size
+  const nameLen = displayName.length || 1;
+  let nameFontSize = canvasW * 0.095;
+  if (nameLen > 8)  nameFontSize *= 0.85;
+  if (nameLen > 15) nameFontSize *= (15/nameLen);
+  if (nameLen > 20) nameFontSize *= 0.9;
+  nameFontSize = Math.max(nameFontSize, 22);
+
+  // Committee font size
+  const cLen = committeeText.length || 1;
+  let cFontSize = canvasW * 0.030;
+  if (cLen > 40) cFontSize = canvasW * 0.024;
+  if (cLen > 60) cFontSize = canvasW * 0.020;
+  cFontSize = Math.max(cFontSize, 12);
+
+  // Logo sizes
+  const logoSize = Math.round(canvasW * 0.14);
+
+  // Right logo HTML
+  const rightLogoHTML = uploadedLogoDataURL
+    ? `<img src="${uploadedLogoDataURL}" style="width:${logoSize}px;height:${logoSize}px;object-fit:contain;" alt="Logo">`
+    : `<div style="width:${logoSize}px;height:${logoSize}px;border:1px dashed rgba(13,27,46,0.15);"></div>`;
+
+  // =============================================
+  // INLINE RACMUN LOGO SVG for print
+  // Replace this SVG with an <img> tag using your
+  // actual logo file for production use.
+  // =============================================
+  const racmunLogoHTML = `
+    <div style="width:${logoSize}px;height:${logoSize}px;display:flex;align-items:center;justify-content:center;">
+      <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
+        <circle cx="30" cy="30" r="27" fill="none" stroke="#0D1B2E" stroke-width="1.5"/>
+        <circle cx="30" cy="30" r="20" fill="none" stroke="#0D1B2E" stroke-width="0.8" stroke-dasharray="3 2"/>
+        <ellipse cx="30" cy="30" rx="10" ry="27" fill="none" stroke="#0D1B2E" stroke-width="0.8"/>
+        <line x1="3" y1="30" x2="57" y2="30" stroke="#0D1B2E" stroke-width="0.8"/>
+        <line x1="3" y1="20" x2="57" y2="20" stroke="#0D1B2E" stroke-width="0.5"/>
+        <line x1="3" y1="40" x2="57" y2="40" stroke="#0D1B2E" stroke-width="0.5"/>
+        <text x="30" y="53" text-anchor="middle" font-family="Montserrat,sans-serif" font-size="5.5" font-weight="800" fill="#0D1B2E" letter-spacing="1">RACMUN</text>
+      </svg>
+    </div>`;
+
+  // Panel heights based on ratio 3:7:7:3
+  const totalH = 1123; // px (794 * 297/210)
+  const part = totalH / 20;
+  const baseH  = Math.round(part * 3);
+  const mainH  = Math.round(part * 7);
+  const emptyH = Math.round(part * 7);
+
+  // Fold line style
+  const foldLineHTML = `
+    <div style="width:100%;border-top:2px dashed rgba(13,27,46,0.22);position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <span style="position:absolute;top:-0.7em;background:#F8F5EE;padding:0 6px;font-family:Montserrat,sans-serif;font-size:10px;letter-spacing:0.25em;color:rgba(13,27,46,0.3);font-weight:600;text-transform:uppercase;">Fold</span>
+    </div>`;
+
+  const html = `
+    <div style="width:794px;min-height:1123px;background:#F8F5EE;display:flex;flex-direction:column;font-family:'Montserrat',sans-serif;color:#1A1612;">
+
+      <!-- Base Top -->
+      <div style="height:${baseH}px;background:#F8F5EE;flex-shrink:0;"></div>
+
+      ${foldLineHTML}
+
+      <!-- MAIN PANEL -->
+      <div style="height:${mainH}px;background:#F8F5EE;flex-shrink:0;position:relative;">
+        <!-- Margin guides (faint) -->
+        <div style="position:absolute;inset:2.5%;border:1px dashed rgba(13,27,46,0.05);pointer-events:none;"></div>
+
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:3.5%;">
+
+          <!-- Corner logos row -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0;">
+            ${racmunLogoHTML}
+            ${rightLogoHTML}
+          </div>
+
+          <!-- Delegation name (center) -->
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:2% 4%;">
+            <div style="
+              font-family:'Montserrat',sans-serif;
+              font-weight:800;
+              font-size:${nameFontSize}px;
+              text-transform:uppercase;
+              text-align:center;
+              color:#1A1612;
+              line-height:1.1;
+              letter-spacing:0.05em;
+              word-break:break-word;
+              width:100%;
+            ">${displayName || '&nbsp;'}</div>
+          </div>
+
+          <!-- Footer strip -->
+          <div style="flex-shrink:0;text-align:center;padding-top:1.5%;border-top:1px solid rgba(13,27,46,0.12);">
+            <div style="
+              font-family:'Montserrat',sans-serif;
+              font-weight:700;
+              font-size:${cFontSize}px;
+              text-transform:uppercase;
+              letter-spacing:0.12em;
+              color:#1A1612;
+            ">${committeeText || '&nbsp;'}</div>
+          </div>
+
+        </div>
+      </div>
+
+      ${foldLineHTML}
+
+      <!-- Empty back panel -->
+      <div style="height:${emptyH}px;background:#F8F5EE;flex-shrink:0;"></div>
+
+      ${foldLineHTML}
+
+      <!-- Base Bottom -->
+      <div style="height:${baseH}px;background:#F8F5EE;flex-shrink:0;"></div>
+
+    </div>`;
+
+  return html;
+}
+
+// =============================================
+// PDF DOWNLOAD
+// =============================================
+async function downloadPDF() {
+  // Validate inputs
+  let name = '';
+  if (currentMode === 'delegate') {
+    name = document.getElementById('delegationName').value.trim();
+  } else {
+    name = document.getElementById('adminName').value.trim();
+  }
+
+  if (!name) {
+    alert('Please enter a delegation name or person name before downloading.');
+    return;
+  }
+
+  // Show loading
+  document.getElementById('loadingOverlay').classList.add('visible');
+
+  try {
+    // Build print canvas HTML
+    const printCanvas = document.getElementById('printCanvas');
+    printCanvas.innerHTML = buildPrintCanvas();
+
+    // Wait for images to load
+    await waitForImages(printCanvas);
+
+    // Short render delay for layout
+    await sleep(300);
+
+    // Capture with html2canvas
+    const canvas = await html2canvas(printCanvas, {
+      scale: 2,          // 2x for retina quality
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#F8F5EE',
+      width: 794,
+      height: 1123,
+      logging: false,
+    });
+
+    // Create PDF with jsPDF
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',       // 210 x 297 mm
+    });
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.98);
+
+    // Add image to fill full A4 page
+    pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+
+    // Generate filename
+    const safeName = name.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
+    pdf.save(`RACMUN_2026_${safeName}_Placard.pdf`);
+
+  } catch (err) {
+    console.error('PDF generation error:', err);
+    alert('There was an error generating the PDF. Please try again.');
+  } finally {
+    document.getElementById('loadingOverlay').classList.remove('visible');
+  }
+}
+
+// Wait for all images in element to finish loading
+function waitForImages(container) {
+  const imgs = container.querySelectorAll('img');
+  if (!imgs.length) return Promise.resolve();
+  const promises = Array.from(imgs).map(img =>
+    new Promise(resolve => {
+      if (img.complete) resolve();
+      else { img.onload = resolve; img.onerror = resolve; }
+    })
+  );
+  return Promise.all(promises);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// =============================================
+// INIT
+// =============================================
+document.addEventListener('DOMContentLoaded', function() {
+  updatePreview();
+
+  // Re-run auto-size on window resize
+  window.addEventListener('resize', updatePreview);
+
+  // Typewriter effect on hero subtitle
+  const sub = document.querySelector('.hero-subtitle');
+  const originalText = sub ? sub.textContent : '';
+  if (sub) {
+    sub.textContent = '';
+    sub.style.opacity = '1';
+    let i = 0;
+    const cursor = document.createElement('span');
+    cursor.className = 'typewriter-cursor';
+    sub.appendChild(cursor);
+
+    setTimeout(function type() {
+      if (i < originalText.length) {
+        sub.insertBefore(document.createTextNode(originalText[i]), cursor);
+        i++;
+        setTimeout(type, 30 + Math.random() * 20);
+      } else {
+        setTimeout(() => cursor.remove(), 1500);
+      }
+    }, 1000);
+  }
+});
+</script>
+</body>
+</html>
