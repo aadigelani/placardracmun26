@@ -971,6 +971,16 @@ body::after {
   content: '◆';
   font-size: 0.45rem;
 }
+/* SUBTLE UNSC BACKGROUND WATERMARK */
+.a4-main-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url('./assets/unsc-logo.png') no-repeat center;
+  background-size: 45%;
+  opacity: 0.04; /* 🔥 adjust between 0.03 - 0.08 */
+  pointer-events: none;
+}
 </style>
 </head>
 <body>
@@ -1056,7 +1066,7 @@ body::after {
       <!-- DELEGATE FORM -->
       <div id="delegateForm">
         <div class="form-group">
-          <label>Delegation Name</label>
+          <label>Delegation Name (instead of long names write USA for United States, etc)</label>
           <input type="text" id="delegationName" placeholder="e.g. INDIA, UNITED STATES"
                  oninput="updatePreview()" maxlength="40">
           <div class="field-hint">Will appear in ALL CAPS on the placard</div>
@@ -1070,7 +1080,7 @@ body::after {
                ============================================= -->
           <select id="committeeSelect" onchange="updatePreview()">
             <option value="">— Select Committee —</option>
-            <option value="UNSC">United Nations Security Council (UNSC)</option>
+            <option value="UNSC">UNSC</option>
             <option value="LokSabha">Lok Sabha</option>
           </select>
         </div>
@@ -1105,7 +1115,7 @@ body::after {
           <label>Committee</label>
           <select id="adminCommitteeSelect" onchange="updateAdminRoles(); updatePreview()">
             <option value="">— Select Committee —</option>
-            <option value="UNSC">United Nations Security Council (UNSC)</option>
+            <option value="UNSC">UNSC</option>
             <option value="LokSabha">Lok Sabha</option>
             <option value="Press">Press</option>
           </select>
@@ -1173,7 +1183,7 @@ body::after {
               <!-- Top row: corner logos -->
               <div class="panel-logos-row">
                 
-              <img src="./assets/unsc-logo.png" class="corner-logo">
+              <img src="./assets/rotaract-logo.png" class="corner-logo">
 
                 <!-- RIGHT: Uploaded logo or placeholder -->
                 <div class="right-corner-placeholder" id="rightCornerPlaceholder">
@@ -1273,8 +1283,8 @@ const COMMITTEE_LABELS = {
 /* ADMIN ROLES PER COMMITTEE */
 const ADMIN_ROLES = {
   UNSC: ['CHAIR', 'VICE CHAIR', 'EB MEMBER'],
-  LokSabha: ['SPEAKER', 'DEPUTY SPEAKER', 'RAPPORTEUR'],
-  Press: ['INTERNATIONAL PRESS']
+  LokSabha: ['SPEAKER', 'DEP. SPEAKER', 'RAPPORTEUR'],
+  Press: ['INTL. PRESS']
 };
 
 // =============================================
@@ -1651,21 +1661,59 @@ function buildPrintCanvas() {
       <div style="height:${baseH}px;background:#F8F5EE;flex-shrink:0;"></div>
 
       ${foldLineHTML}
+      <div style="height:${emptyH}px;background:#F8F5EE;flex-shrink:0;"></div>
 
+      ${foldLineHTML}
       <!-- MAIN PANEL -->
-      <div style="height:${mainH}px;background:#F8F5EE;flex-shrink:0;position:relative;">
-        <!-- Margin guides (faint) -->
-        <div style="position:absolute;inset:2.5%;border:1px dashed rgba(13,27,46,0.05);pointer-events:none;"></div>
+      <div style="
+        height:${mainH}px;
+        background:#F8F5EE;
+        flex-shrink:0;
+        position:relative;
+        overflow:hidden;
+      ">
 
-        <div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:3.5%;">
+        <!-- 🔥 WATERMARK (FIXED + TRANSLUCENT) -->
+        <div style="
+          position:absolute;
+          inset:0;
+          background:url('./assets/unsc-logo.png') no-repeat center;
+          background-size:45%;
+          opacity:0.04;
+          pointer-events:none;
+          z-index:0;
+        "></div>
 
-          <!-- Corner logos row -->
+        <!-- Margin guides -->
+        <div style="
+          position:absolute;
+          inset:2.5%;
+          border:1px dashed rgba(13,27,46,0.05);
+          pointer-events:none;
+          z-index:1;
+        "></div>
+
+        <!-- CONTENT -->
+        <div style="
+          position:absolute;
+          inset:0;
+          display:flex;
+          flex-direction:column;
+          padding:3.5%;
+          z-index:2;
+        ">
+
+          <!-- Corner logos -->
           <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0;">
-            ${racmunLogoHTML}
+            
+            <!-- 🔁 ROTARACT LOGO HERE -->
+            <img src="./assets/rotaract-logo.png"
+                style="width:${logoSize}px;height:${logoSize}px;object-fit:contain;" />
+
             ${rightLogoHTML}
           </div>
 
-          <!-- Delegation name (center) -->
+          <!-- Delegation -->
           <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:2% 4%;">
             <div style="
               font-family:'Montserrat',sans-serif;
@@ -1681,7 +1729,7 @@ function buildPrintCanvas() {
             ">${displayName || '&nbsp;'}</div>
           </div>
 
-          <!-- Footer strip -->
+          <!-- Footer -->
           <div style="flex-shrink:0;text-align:center;padding-top:1.5%;border-top:1px solid rgba(13,27,46,0.12);">
             <div style="
               font-family:'Montserrat',sans-serif;
